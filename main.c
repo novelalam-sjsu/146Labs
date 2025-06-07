@@ -54,16 +54,101 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "main.h"
+
+
+/* Ensure variable is static */
+enum states curr_state;
+uint32_t* curr_addr = MACHINE_START_ADDR;
+
+
 int main(void)
 {
     /* Stop Watchdog  */
     MAP_WDT_A_holdTimer();
-
     
+    curr_state = START_STATE;
+    /* Holds number of entries in that tag block */
+    uint16_t numEntries;
 
     while(1)
     {
-        
+        /* Define the state machine */
+        switch (curr_state) {
+            case START_STATE:
+                /* Print checksum value */
+                printf("%08x\n", *curr_addr);
+
+                /* Increment curr_addr by 4 bytes*/
+                curr_addr++;
+
+                /* If value at location not magic number go to TAG_STATE, else END_STATE */
+                if ((*curr_addr) != TLV_END_WORD) 
+                    curr_state = TAG_STATE;
+                else 
+                    curr_state = END_STATE;
+
+            break;
+
+            case TAG_STATE:
+                /* Print tag info number*/
+                printf("%08x ", *curr_addr);
+                
+                /* Increment by four bytes */
+                curr_addr++;
+
+                curr_state = LENGTH_STATE; 
+            break;
+
+            case LENGTH_STATE:
+                /* Store number of entries */
+                numEntries = *curr_addr;
+
+                /* print length in hex */
+                printf("%x ", *curr_addr);
+
+                /* Increment by four bytes */
+                curr_addr++;
+
+                curr_state = DATA_STATE;
+
+
+            break;
+
+            case DATA_STATE:
+                /* As long as numEntries > 0 print entry and increment*/
+                while (numEntries > 0) {
+                    /* print out data entry */
+                    printf("%08x ", *curr_addr);
+
+                    /* Decrement numEnries and go to next address*/
+                    numEntries--;
+                    curr_addr++;
+                }
+
+                /*Flush buffer*/
+                printf("\n");
+
+                /* If value at location not magic number go to TAG_STATE, else END_STATE */
+                if ((*curr_addr) != TLV_END_WORD) 
+                    curr_state = TAG_STATE;
+                else 
+                    curr_state = END_STATE;
+
+
+            break;
+            
+            case END_STATE:
+                /* Print out the ma*/
+                printf("%08x ", *curr_addr);
+
+                return 0;
+
+
+            default:
+                /* Raise exception*/
+                return -1;
+        }
     }
 }
      
